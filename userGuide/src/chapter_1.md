@@ -36,13 +36,13 @@ In order to execute application code some preliminary setup is required. (So far
     # create the same hosts.conf file in every machine:
     $ cd ~ && vim hosts.conf ...
     ```
-* The environment variable `SPARK_LOCAL_IP` must be set for the user executing application code.
+* The environment variable `NS_LOCAL_IP` must be set for the user executing application code.
     * In `local` it suffices to set up for the current user:
-    > $ export SPARK_LOCAL_IP=0.0.0.0
+    > $ export NS_LOCAL_IP=0.0.0.0
     * In `distributed` the variable is required, aditionally, to be set up for the users remotely connecting. Depending on the O.S. and ssh defaults this may require some additional configuration. E.g.:
     ```doc
     $ ssh remote_user@172.0.0.10
-    $ sudo echo "SPARK_LOCAL_IP=172.0.0.10" >> .ssh/environment
+    $ sudo echo "NS_LOCAL_IP=172.0.0.10" >> .ssh/environment
     $ sudo echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
     $ service ssh restart 
     ```
@@ -52,15 +52,7 @@ examples just run them. In `local`:
 > cargo run --example make_rdd
 
 In `distributed`:
-> cargo run --example make_rdd distributed
-
-### Additional notes
-
-Since File readers are not done, you have to use manual file reading for now (like manually reading from S3 or hack around local files by distributing copies of all files to all machines and make rdd using filename list).
-
-Ctrl-C and panic handling are not done yet, so if there is some problem during runtime, executors won't shut down automatically and you will have to manually kill the processes.
-
-One of the limitations of current implementation is that the input and return types of all closures and all input to make_rdd should be owned data.
+> cargo run --example make_rdd -d distributed
 
 ## Deploying with Docker
 
@@ -76,5 +68,26 @@ and deploying distributed mode on your local host. In order to use them:
 This will execute all the necessary steeps to to deploy a working network of containers where you can execute the tests. When finished you can attach a shell to the master and run the examples:
 ```doc
 $ docker exec -it docker_ns_master_1 bash
-$ ./make_rdd distributed
+$ ./make_rdd -d distributed
 ```
+
+## Setting execution mode
+
+In your application you can set the execution mode (`local` or `distributed`) in one of the following ways:
+
+1. Set it explicitly while creating the context, e.g.:
+```doc
+    use native_spark::DeploymentMode;
+
+    let context = Context::with_mode(DeploymentMode::Local)?;
+```
+2. Execute the application with the `deployment mode` argument set to one of the valid modes (e.g.: `./my_app -d distributed`)
+3. Set the DEPLOYMENT_MODE environment variable (e.g.: `DEPLOYMENT_MODE=local`
+
+### Additional notes
+
+Since File readers are not done, you have to use manual file reading for now (like manually reading from S3 or hack around local files by distributing copies of all files to all machines and make rdd using filename list).
+
+Ctrl-C and panic handling are not done yet, so if there is some problem during runtime, executors won't shut down automatically and you will have to manually kill the processes.
+
+One of the limitations of current implementation is that the input and return types of all closures and all input to make_rdd should be owned data.
